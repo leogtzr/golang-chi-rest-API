@@ -28,7 +28,8 @@ type MongoHandler struct {
 
 // MongoHandler ...
 func NewHandler(address string) *MongoHandler {
-	ctx, _ := context.WithTimeout(context.Background(), mongoHandlerCallTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), mongoHandlerCallTimeout)
+	defer cancel()
 
 	mongoClient, _ := mongo.Connect(ctx, options.Client().ApplyURI(address))
 	handler := &MongoHandler{
@@ -42,7 +43,10 @@ func NewHandler(address string) *MongoHandler {
 func (mh *MongoHandler) GetOne(c *Contact, filter interface{}) error {
 	// Will automatically create a collection if not available
 	collection := mh.client.Database(mh.database).Collection("contact")
-	ctx, _ := context.WithTimeout(context.Background(), getDocumentCallTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), getDocumentCallTimeout)
+
+	defer cancel()
+
 	err := collection.FindOne(ctx, filter).Decode(c)
 
 	return err
@@ -50,7 +54,9 @@ func (mh *MongoHandler) GetOne(c *Contact, filter interface{}) error {
 
 func (mh *MongoHandler) Get(filter interface{}) []*Contact {
 	collection := mh.client.Database(mh.database).Collection("contact")
-	ctx, _ := context.WithTimeout(context.Background(), getDocumentCallTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), getDocumentCallTimeout)
+
+	defer cancel()
 
 	cur, err := collection.Find(ctx, filter)
 	if err != nil {
@@ -76,7 +82,10 @@ func (mh *MongoHandler) Get(filter interface{}) []*Contact {
 
 func (mh *MongoHandler) AddOne(c *Contact) (*mongo.InsertOneResult, error) {
 	collection := mh.client.Database(mh.database).Collection("contact")
-	ctx, _ := context.WithTimeout(context.Background(), addDocumentCallTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), addDocumentCallTimeout)
+
+	defer cancel()
+
 	result, err := collection.InsertOne(ctx, c)
 
 	return result, err
@@ -84,7 +93,10 @@ func (mh *MongoHandler) AddOne(c *Contact) (*mongo.InsertOneResult, error) {
 
 func (mh *MongoHandler) Update(filter interface{}, update interface{}) (*mongo.UpdateResult, error) {
 	collection := mh.client.Database(mh.database).Collection("contact")
-	ctx, _ := context.WithTimeout(context.Background(), updateDocumentCallTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), updateDocumentCallTimeout)
+
+	defer cancel()
+
 	result, err := collection.UpdateMany(ctx, filter, update)
 
 	return result, err
@@ -92,7 +104,9 @@ func (mh *MongoHandler) Update(filter interface{}, update interface{}) (*mongo.U
 
 func (mh *MongoHandler) RemoveOne(filter interface{}) (*mongo.DeleteResult, error) {
 	collection := mh.client.Database(mh.database).Collection("contact")
-	ctx, _ := context.WithTimeout(context.Background(), removeDocumentCallTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), removeDocumentCallTimeout)
+
+	defer cancel()
 
 	result, err := collection.DeleteOne(ctx, filter)
 
