@@ -70,7 +70,7 @@ func (mh *MongoHandler) Get(filter interface{}) []*Contact {
 
 		result = append(result, contact)
 	}
-	
+
 	return result
 }
 
