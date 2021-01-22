@@ -10,6 +10,8 @@ import (
 	contact "contact.com"
 	"github.com/go-chi/chi"
 	"go.mongodb.org/mongo-driver/bson"
+
+	"github.com/go-chi/chi/middleware"
 )
 
 func deleteContact(handler *contact.MongoHandler) http.HandlerFunc {
@@ -124,14 +126,13 @@ func addContact(handler *contact.MongoHandler) http.HandlerFunc {
 	}
 }
 
-func registerRoutes(handler *contact.MongoHandler) http.Handler {
-	router := chi.NewRouter()
-	router.Route("/contacts", func(r chi.Router) {
-		r.Get("/", getAllContact(handler))                 // GET /contacts
-		r.Get("/{phonenumber}", getContact(handler))       // GET /contacts/0147344454
-		r.Post("/", addContact(handler))                   // POST /contacts
-		r.Put("/{phonenumber}", updateContact(handler))    // PUT /contacts/0147344454
-		r.Delete("/{phonenumber}", deleteContact(handler)) // DELETE /contacts/0147344454
+func registerRoutes(handler *contact.MongoHandler, router *chi.Mux) http.Handler {
+	router.Route("/contacts", func(router chi.Router) {
+		router.Get("/", getAllContact(handler))                 // GET /contacts
+		router.Get("/{phonenumber}", getContact(handler))       // GET /contacts/0147344454
+		router.Post("/", addContact(handler))                   // POST /contacts
+		router.Put("/{phonenumber}", updateContact(handler))    // PUT /contacts/0147344454
+		router.Delete("/{phonenumber}", deleteContact(handler)) // DELETE /contacts/0147344454
 	})
 
 	return router
@@ -141,6 +142,9 @@ func main() {
 	mongoDBConnection := "mongodb://localhost:27017"
 	mh := contact.NewHandler(mongoDBConnection) // Create an instance of MongoHander with the connection string provided
 
-	routerHandler := registerRoutes(mh)
+	router := chi.NewRouter()
+	router.Use(middleware.Logger)
+
+	routerHandler := registerRoutes(mh, router)
 	log.Fatal(http.ListenAndServe(":3060", routerHandler)) // You can modify to run on a different port
 }
