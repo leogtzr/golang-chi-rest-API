@@ -57,7 +57,13 @@ func updateContact(handler *contact.MongoHandler) http.HandlerFunc {
 
 		_ = json.NewDecoder(r.Body).Decode(contact)
 
-		_, err := handler.Update(bson.M{"phoneNumber": phoneNumber}, contact)
+		update := bson.D{
+			{"$set", bson.D{{"phoneNumber", "Nicolas Raboy"}}},
+		}
+
+		fmt.Println(contact)
+
+		_, err := handler.Update(update, contact)
 		if err != nil {
 			http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
 

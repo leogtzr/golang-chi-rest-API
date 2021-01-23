@@ -2,6 +2,7 @@ package contact
 
 import (
 	"context"
+	"go.mongodb.org/mongo-driver/bson"
 	"log"
 	"time"
 
@@ -91,13 +92,23 @@ func (mh *MongoHandler) AddOne(c *Contact) (*mongo.InsertOneResult, error) {
 	return result, err
 }
 
-func (mh *MongoHandler) Update(filter interface{}, update interface{}) (*mongo.UpdateResult, error) {
+func (mh *MongoHandler) Update(filter interface{}, update *Contact) (*mongo.UpdateResult, error) {
 	collection := mh.client.Database(mh.database).Collection("contact")
 	ctx, cancel := context.WithTimeout(context.Background(), updateDocumentCallTimeout)
 
 	defer cancel()
 
-	result, err := collection.UpdateMany(ctx, filter, update)
+	result, err := collection.UpdateMany(ctx,
+		bson.M{
+			"firstName": update.FirstName,
+			"lastName": update.LastName,
+		}, bson.D{
+			{"$set",
+				bson.M{
+					"phoneNumber": update.PhoneNumber},
+			},
+		},
+	)
 
 	return result, err
 }
