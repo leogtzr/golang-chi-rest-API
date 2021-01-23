@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,9 +10,8 @@ import (
 
 	contact "contact.com"
 	"github.com/go-chi/chi"
-	"go.mongodb.org/mongo-driver/bson"
-
 	"github.com/go-chi/chi/middleware"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 func deleteContact(handler *contact.MongoHandler) http.HandlerFunc {
@@ -57,13 +57,7 @@ func updateContact(handler *contact.MongoHandler) http.HandlerFunc {
 
 		_ = json.NewDecoder(r.Body).Decode(contact)
 
-		update := bson.D{
-			{"$set", bson.D{{"phoneNumber", "Nicolas Raboy"}}},
-		}
-
-		fmt.Println(contact)
-
-		_, err := handler.Update(update, contact)
+		_, err := handler.Update(contact)
 		if err != nil {
 			http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
 
@@ -146,11 +140,20 @@ func registerRoutes(handler *contact.MongoHandler, router *chi.Mux) http.Handler
 
 func main() {
 	mongoDBConnection := "mongodb://localhost:27017"
-	mh := contact.NewHandler(mongoDBConnection) // Create an instance of MongoHander with the connection string provided
+
+	client, err := contact.InitDataLayer(mongoDBConnection)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		_ = client.Disconnect(context.Background())
+	}()
+
+	mh := contact.NewHandler("contactstore", client)
 
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
 
 	routerHandler := registerRoutes(mh, router)
-	log.Fatal(http.ListenAndServe(":3060", routerHandler)) // You can modify to run on a different port
+	log.Fatal(http.ListenAndServe(":3060", routerHandler))
 }

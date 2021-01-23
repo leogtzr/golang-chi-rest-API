@@ -2,10 +2,11 @@ package contact
 
 import (
 	"context"
-	"go.mongodb.org/mongo-driver/bson"
 	"log"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -18,32 +19,36 @@ const (
 	mongoHandlerCallTimeout   = 10 * time.Second
 )
 
-// DefaultDatabase ...
-const DefaultDatabase = "contactstore"
-
 // MongoHandler ...
 type MongoHandler struct {
 	client   *mongo.Client
-	database string
+	database *mongo.Database
 }
 
-// MongoHandler ...
-func NewHandler(address string) *MongoHandler {
+func InitDataLayer(address string) (*mongo.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), mongoHandlerCallTimeout)
 	defer cancel()
 
-	mongoClient, _ := mongo.Connect(ctx, options.Client().ApplyURI(address))
+	return mongo.Connect(ctx, options.Client().ApplyURI(address))
+}
+
+// MongoHandler ...
+func NewHandler(databaseName string, client *mongo.Client) *MongoHandler {
+	db := client.Database(databaseName)
 	handler := &MongoHandler{
-		client:   mongoClient,
-		database: DefaultDatabase,
+		client:   client,
+		database: db,
 	}
 
 	return handler
 }
 
+func (mh *MongoHandler) DisconnectDataLayer() error {
+	return mh.client.Disconnect(context.Background())
+}
+
 func (mh *MongoHandler) GetOne(c *Contact, filter interface{}) error {
-	// Will automatically create a collection if not available
-	collection := mh.client.Database(mh.database).Collection("contact")
+	collection := mh.database.Collection("contact")
 	ctx, cancel := context.WithTimeout(context.Background(), getDocumentCallTimeout)
 
 	defer cancel()
@@ -54,7 +59,7 @@ func (mh *MongoHandler) GetOne(c *Contact, filter interface{}) error {
 }
 
 func (mh *MongoHandler) Get(filter interface{}) []*Contact {
-	collection := mh.client.Database(mh.database).Collection("contact")
+	collection := mh.database.Collection("contact")
 	ctx, cancel := context.WithTimeout(context.Background(), getDocumentCallTimeout)
 
 	defer cancel()
@@ -82,7 +87,7 @@ func (mh *MongoHandler) Get(filter interface{}) []*Contact {
 }
 
 func (mh *MongoHandler) AddOne(c *Contact) (*mongo.InsertOneResult, error) {
-	collection := mh.client.Database(mh.database).Collection("contact")
+	collection := mh.database.Collection("contact")
 	ctx, cancel := context.WithTimeout(context.Background(), addDocumentCallTimeout)
 
 	defer cancel()
@@ -92,8 +97,8 @@ func (mh *MongoHandler) AddOne(c *Contact) (*mongo.InsertOneResult, error) {
 	return result, err
 }
 
-func (mh *MongoHandler) Update(filter interface{}, update *Contact) (*mongo.UpdateResult, error) {
-	collection := mh.client.Database(mh.database).Collection("contact")
+func (mh *MongoHandler) Update(update *Contact) (*mongo.UpdateResult, error) {
+	collection := mh.database.Collection("contact")
 	ctx, cancel := context.WithTimeout(context.Background(), updateDocumentCallTimeout)
 
 	defer cancel()
@@ -101,11 +106,13 @@ func (mh *MongoHandler) Update(filter interface{}, update *Contact) (*mongo.Upda
 	result, err := collection.UpdateMany(ctx,
 		bson.M{
 			"firstName": update.FirstName,
-			"lastName": update.LastName,
+			"lastName":  update.LastName,
 		}, bson.D{
-			{"$set",
-				bson.M{
-					"phoneNumber": update.PhoneNumber},
+			primitive.E{
+				Key: "$set",
+				Value: bson.M{
+					"phoneNumber": update.PhoneNumber,
+				},
 			},
 		},
 	)
@@ -114,7 +121,7 @@ func (mh *MongoHandler) Update(filter interface{}, update *Contact) (*mongo.Upda
 }
 
 func (mh *MongoHandler) RemoveOne(filter interface{}) (*mongo.DeleteResult, error) {
-	collection := mh.client.Database(mh.database).Collection("contact")
+	collection := mh.database.Collection("contact")
 	ctx, cancel := context.WithTimeout(context.Background(), removeDocumentCallTimeout)
 
 	defer cancel()
